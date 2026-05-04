@@ -1,0 +1,111 @@
+-- 1. Crear la base de datos con el nombre original
+CREATE DATABASE IF NOT EXISTS sistema_inventario;
+USE sistema_inventario;
+
+-- 2. Tabla de Proveedores (Necesaria para registrar productos)
+CREATE TABLE PROVEEDORES (
+    id_proveedor INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    contacto VARCHAR(100)
+);
+
+-- 3. Tabla de Usuarios (Para manejar roles de Admin y UsuarioComun)
+CREATE TABLE USUARIOS (
+    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    usuario VARCHAR(50) UNIQUE NOT NULL,
+    contraseña VARCHAR(255) NOT NULL,
+    tipo_usuario ENUM('Admin', 'UsuarioComun') NOT NULL
+);
+
+-- 4. Tabla de Productos (Relacionada con Proveedores)
+CREATE TABLE PRODUCTOS (
+    id_producto INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    id_proveedor INT,
+    FOREIGN KEY (id_proveedor) REFERENCES PROVEEDORES(id_proveedor)
+);
+
+-- 5. Tabla de Stock (Actualizada automáticamente por Triggers)
+CREATE TABLE STOCK (
+    id_stock INT AUTO_INCREMENT PRIMARY KEY,
+    id_producto INT,
+    cantidad INT DEFAULT 0,
+    FOREIGN KEY (id_producto) REFERENCES PRODUCTOS(id_producto) ON DELETE CASCADE
+);
+
+-- 6. Tablas de Movimientos (Para el historial)
+CREATE TABLE ENTRADAS (
+    id_entrada INT AUTO_INCREMENT PRIMARY KEY,
+    id_producto INT,
+    cantidad INT,
+    id_usuario INT,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_producto) REFERENCES PRODUCTOS(id_producto),
+    FOREIGN KEY (id_usuario) REFERENCES USUARIOS(id_usuario)
+);
+
+CREATE TABLE SALIDAS (
+    id_salida INT AUTO_INCREMENT PRIMARY KEY,
+    id_producto INT,
+    cantidad INT,
+    proyecto VARCHAR(100),
+    id_usuario INT,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_producto) REFERENCES PRODUCTOS(id_producto),
+    FOREIGN KEY (id_usuario) REFERENCES USUARIOS(id_usuario)
+);
+
+-- 7. Datos iniciales para que puedas entrar al sistema de inmediato
+INSERT INTO PROVEEDORES (nombre) VALUES ('PROVEEDOR GENERAL');
+
+INSERT INTO USUARIOS (nombre, usuario, contraseña, tipo_usuario) 
+VALUES ('Valeria Admin', 'val_admin', 'admin123', 'Admin');
+
+DELIMITER //
+
+-- Trigger para sumar stock al registrar entrada
+CREATE TRIGGER actualizar_stock_entrada AFTER INSERT ON ENTRADAS
+FOR EACH ROW
+BEGIN
+    UPDATE STOCK SET cantidad = cantidad + NEW.cantidad WHERE id_producto = NEW.id_producto;
+END //
+
+-- Trigger para restar stock al registrar salida
+CREATE TRIGGER actualizar_stock_salida AFTER INSERT ON SALIDAS
+FOR EACH ROW
+BEGIN
+    UPDATE STOCK SET cantidad = cantidad - NEW.cantidad WHERE id_producto = NEW.id_producto;
+END //
+
+DELIMITER ;
+
+USE sistema_inventario;
+
+-- 1. Insertar Proveedores reales con los que trabajas
+INSERT INTO PROVEEDORES (nombre, contacto) VALUES 
+('Materiales del Golfo', 'ventas@materialesgolfo.com'),
+('Distribuidora Vistawood', 'contacto@vistawood.mx');
+
+-- 2. Insertar Productos basados en tus proyectos de diseño
+INSERT INTO PRODUCTOS (nombre, id_proveedor) VALUES 
+('Panel Laminado Vistawood', 2),
+('WPC Lambrín Gris', 1),
+('Piso Vinílico Roble', 1),
+('Mueble Organizador Infantil', 1); -- El que corregimos para el área pediátrica
+
+-- 3. Inicializar el Stock en 0 para estos productos
+INSERT INTO STOCK (id_producto, cantidad) VALUES 
+(1, 0), (2, 0), (3, 0), (4, 0);
+
+-- 4. Registrar Entradas (Compras a proveedores)
+-- Nota: id_usuario 1 es val_admin
+INSERT INTO ENTRADAS (id_producto, cantidad, id_usuario) VALUES 
+(1, 50, 1), -- 50 láminas de Vistawood
+(2, 30, 1), -- 30 piezas de Lambrín
+(3, 100, 1); -- 100 m2 de piso
+
+-- 5. Registrar Salidas (Material usado en proyectos)
+INSERT INTO SALIDAS (id_producto, cantidad, proyecto, id_usuario) VALUES 
+(1, 10, 'Remodelación Cafetería Ulises', 1), -- Salida para el proyecto del Sr. Ulises
+(2, 5, 'Villas de San Pablo - Oficina', 1); -- Salida para el proyecto de Río Blanco
