@@ -1,94 +1,107 @@
 <template>
-  <div class="container">
-    <header class="view-header">
-      <h1>HISTORIAL DE MOVIMIENTOS</h1>
-      <p>REGISTRO CRONOLÓGICO DE ENTRADAS Y SALIDAS</p>
+  <div class="main-container">
+    <header class="header">
+      <h1><i class="fas fa-history"></i> Historial de Movimientos</h1>
     </header>
 
     <section class="card">
-      <div class="table-container">
-        <table class="history-table">
-          <thead>
-            <tr>
-              <th>TIPO</th>
-              <th>PRODUCTO</th>
-              <th>CANTIDAD</th>
-              <th>FECHA</th>
-              <th>RESPONSABLE</th>
-              <th>PROYECTO / DESTINO</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, index) in historial" :key="index">
-              <td>
-                <span :class="['badge', item.tipo === 'ENTRADA' ? 'bg-entrada' : 'bg-salida']">
-                  {{ item.tipo }}
-                </span>
-              </td>
-              <td class="font-bold">{{ item.producto }}</td>
-              <td>{{ item.cantidad }} pz</td>
-              <td>{{ formatFecha(item.fecha) }}</td>
-              <td>{{ item.responsable }}</td>
-              <td>
-                <span class="proyecto-text">{{ item.proyecto || 'N/A' }}</span>
-              </td>
-            </tr>
-            <tr v-if="historial.length === 0">
-              <td colspan="6" class="text-center">NO HAY MOVIMIENTOS REGISTRADOS</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="table-header-flex">
+        <h3>Bitácora de Entradas y Salidas</h3>
+        <div class="search-box">
+          <i class="fas fa-search search-icon"></i>
+          <input v-model="buscarHistorial" placeholder="Buscar por material o proyecto..." class="input-search">
+        </div>
       </div>
+
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Clave</th>
+            <th>Material</th>
+            <th>Cantidad</th>
+            <th>Proyecto / Destino</th>
+            <th>Responsable</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="mov in historialFiltrado" :key="mov.id_movimiento || mov.ID_MOVIMIENTO">
+            <td>{{ mov.fecha || mov.FECHA }}</td>
+            <td>
+              <span :class="['type-badge', (mov.tipo || mov.TIPO) === 'ENTRADA' ? 'badge-in' : 'badge-out']">
+                {{ mov.tipo || mov.TIPO }}
+              </span>
+            </td>
+            <td class="sku-text">{{ mov.clave_proveedor || mov.CLAVE_PROVEEDOR || 'S/C' }}</td>
+            <td><strong>{{ mov.producto || mov.PRODUCTO }}</strong></td>
+            <td>{{ mov.cantidad || mov.CANTIDAD }} ud</td>
+            <td class="project-text">{{ mov.proyecto || mov.PROYECTO || 'Stock General' }}</td>
+            <td>{{ mov.usuario || mov.USUARIO }}</td>
+          </tr>
+          <tr v-if="historialFiltrado.length === 0">
+            <td colspan="7" class="text-center text-muted">No hay registros que coincidan con la búsqueda.</td>
+          </tr>
+        </tbody>
+      </table>
     </section>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 
 const historial = ref([]);
+const buscarHistorial = ref('');
+const url = 'http://localhost/sistema-inventario/backend/historial.php';
 
 const cargarHistorial = async () => {
   try {
-    const url = 'http://localhost/sistema-inventario/backend/historial.php';
     const res = await axios.get(url);
     historial.value = res.data;
-  } catch (error) {
-    console.error("ERROR AL CARGAR EL HISTORIAL:", error);
+  } catch (err) {
+    console.error("Error al cargar la bitácora:", err);
   }
 };
 
-// Función para darle un formato más limpio a la fecha
-const formatFecha = (fechaStr) => {
-  if (!fechaStr) return '';
-  const date = new Date(fechaStr);
-  return date.toLocaleDateString('es-MX', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric'
+// Filtro computado para buscar instantáneamente en el historial
+const historialFiltrado = computed(() => {
+  if (!buscarHistorial.value) {
+    return historial.value;
+  }
+  const termino = buscarHistorial.value.toLowerCase().trim();
+  return historial.value.filter(mov => {
+    const producto = (mov.producto || mov.PRODUCTO || '').toLowerCase();
+    const proyecto = (mov.proyecto || mov.PROYECTO || '').toLowerCase();
+    const clave = (mov.clave_proveedor || mov.CLAVE_PROVEEDOR || '').toLowerCase();
+    return producto.includes(termino) || proyecto.includes(termino) || clave.includes(termino);
   });
-};
+});
 
 onMounted(cargarHistorial);
 </script>
 
 <style scoped>
-.container { max-width: 1100px; margin: auto; }
-.view-header { margin-bottom: 25px; border-bottom: 2px solid #28a745; padding-bottom: 10px; }
-.view-header h1 { margin: 0; color: #333; }
+.main-container { padding: 30px; background: #121212; min-height: 100vh; color: #f5f5f5; }
+.header h1 { color: #28a745; font-size: 1.8rem; margin-bottom: 25px; font-weight: 400; letter-spacing: 1px; }
+.card { background: #1e1e1e; padding: 25px; border-radius: 14px; border: 1px solid #2d2d2d; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
 
-.card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+.table-header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px; }
+.search-box { position: relative; display: flex; align-items: center; width: 320px; }
+.search-icon { position: absolute; left: 12px; color: #777; }
+.input-search { width: 100%; padding: 10px 10px 10px 38px !important; background: #2a2a2a; border: 1px solid #3d3d3d; color: white; border-radius: 8px; font-size: 0.85rem; }
+.input-search:focus { border-color: #28a745; outline: none; }
 
-.history-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-.history-table th { background: #f8f9fa; padding: 15px; text-align: left; border-bottom: 2px solid #dee2e6; color: #555; }
-.history-table td { padding: 15px; border-bottom: 1px solid #eee; color: #444; }
+.styled-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+.styled-table th { padding: 16px; border-bottom: 2px solid #333; color: #aaa; font-size: 0.75rem; text-transform: uppercase; text-align: left; letter-spacing: 1px; }
+.styled-table td { padding: 16px; border-bottom: 1px solid #252525; color: #ddd; }
 
-.badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; color: white; }
-.bg-entrada { background-color: #28a745; }
-.bg-salida { background-color: #dc3545; }
-
-.font-bold { font-weight: bold; color: #222; }
-.proyecto-text { color: #666; font-style: italic; }
-.text-center { text-align: center; padding: 30px; color: #999; }
+.type-badge { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
+.badge-in { background: rgba(45, 206, 137, 0.15); color: #2dce89; border: 1px solid #2dce89; }
+.badge-out { background: rgba(245, 54, 92, 0.15); color: #f5365c; border: 1px solid #f5365c; }
+.project-text { color: #11cdef; font-style: italic; }
+.sku-text { font-family: monospace; color: #ffc107; font-weight: bold; }
+.text-center { text-align: center !important; padding: 25px !important; }
+.text-muted { color: #777; }
 </style>
