@@ -110,14 +110,11 @@ const cargarDatos = async () => {
     const resProd = await axios.get(`${apiBase}/productos.php`);
     productos.value = resProd.data;
     
-    // Lista local estática de proveedores para sincronizar rápido
-    proveedores.value = [
-      { id_proveedor: 1, nombre: 'Distribuidora Vistawood' },
-      { id_proveedor: 2, nombre: 'Materiales del Golfo' },
-      { id_proveedor: 3, nombre: 'Maderas Finas Ver' }
-    ];
+    // MODIFICACIÓN: Consumimos de forma directa el nuevo backend dinámico
+    const resProv = await axios.get(`${apiBase}/proveedores.php`);
+    proveedores.value = resProv.data;
   } catch (error) {
-    console.error("Error al cargar los datos:", error);
+    console.error("Error al cargar los datos dinámicos:", error);
   }
 };
 
