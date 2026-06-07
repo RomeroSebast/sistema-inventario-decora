@@ -109,3 +109,139 @@ INSERT INTO ENTRADAS (id_producto, cantidad, id_usuario) VALUES
 INSERT INTO SALIDAS (id_producto, cantidad, proyecto, id_usuario) VALUES 
 (1, 10, 'Remodelación Cafetería Ulises', 1), -- Salida para el proyecto del Sr. Ulises
 (2, 5, 'Villas de San Pablo - Oficina', 1); -- Salida para el proyecto de Río Blanco
+
+-- Esto es nuevo 
+USE sistema_inventario;
+
+-- 1. Agregar la clave del proveedor a la tabla de PRODUCTOS
+ALTER TABLE PRODUCTOS ADD COLUMN clave_proveedor VARCHAR(50) NOT NULL AFTER nombre;
+
+-- 2. Modificar la tabla STOCK para llevar el doble conteo
+ALTER TABLE STOCK 
+    ADD COLUMN cerrados INT DEFAULT 0 AFTER id_producto,
+    ADD COLUMN abiertos INT DEFAULT 0 AFTER cerrados,
+    DROP COLUMN cantidad;
+
+-- 3. Actualizar los datos de prueba existentes con claves de ejemplo
+UPDATE PRODUCTOS SET clave_proveedor = 'VW-LAM-01' WHERE id_producto = 1;
+UPDATE PRODUCTOS SET clave_proveedor = 'WPC-GR-05' WHERE id_producto = 2;
+UPDATE PRODUCTOS SET clave_proveedor = 'PV-ROB-12' WHERE id_producto = 3;
+UPDATE PRODUCTOS SET clave_proveedor = 'MUE-MONT-02' WHERE id_producto = 4;
+
+
+USE sistema_inventario;
+
+-- 1. Eliminar las tablas existentes si causan conflicto (de hijas a padres)
+DROP TABLE IF EXISTS SALIDAS;
+DROP TABLE IF EXISTS ENTRADAS;
+DROP TABLE IF EXISTS STOCK;
+DROP TABLE IF EXISTS PRODUCTOS;
+DROP TABLE IF EXISTS PROVEEDORES;
+DROP TABLE IF EXISTS USUARIOS;
+
+-- 2. Crear tabla de PROVEEDORES
+CREATE TABLE PROVEEDORES (
+    id_proveedor INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    contacto VARCHAR(100)
+);
+
+-- 3. Crear tabla de USUARIOS
+CREATE TABLE USUARIOS (
+    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    usuario VARCHAR(50) UNIQUE NOT NULL,
+    contraseña VARCHAR(255) NOT NULL,
+    tipo_usuario ENUM('Admin', 'UsuarioComun') NOT NULL
+);
+
+-- 4. Crear tabla de PRODUCTOS (Ya incluyendo de forma nativa la clave)
+CREATE TABLE PRODUCTOS (
+    id_producto INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    clave_proveedor VARCHAR(50) NOT NULL,
+    id_proveedor INT,
+    FOREIGN KEY (id_proveedor) REFERENCES PROVEEDORES(id_proveedor) ON DELETE SET NULL
+);
+
+-- 5. Crear tabla de STOCK (Estructura dual: cerrados y abiertos)
+CREATE TABLE STOCK (
+    id_stock INT AUTO_INCREMENT PRIMARY KEY,
+    id_producto INT,
+    cerrados INT DEFAULT 0,
+    abiertos INT DEFAULT 0,
+    FOREIGN KEY (id_producto) REFERENCES PRODUCTOS(id_producto) ON DELETE CASCADE
+);
+
+-- 6. Crear tablas de HISTORIAL DE MOVIMIENTOS
+CREATE TABLE ENTRADAS (
+    id_entrada INT AUTO_INCREMENT PRIMARY KEY,
+    id_producto INT,
+    cantidad INT,
+    id_usuario INT,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_producto) REFERENCES PRODUCTOS(id_producto) ON DELETE CASCADE,
+    FOREIGN KEY (id_usuario) REFERENCES USUARIOS(id_usuario) ON DELETE SET NULL
+);
+
+CREATE TABLE SALIDAS (
+    id_salida INT AUTO_INCREMENT PRIMARY KEY,
+    id_producto INT,
+    cantidad INT,
+    proyecto VARCHAR(100),
+    id_usuario INT,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_producto) REFERENCES PRODUCTOS(id_producto) ON DELETE CASCADE,
+    FOREIGN KEY (id_usuario) REFERENCES USUARIOS(id_usuario) ON DELETE SET NULL
+);
+
+-- 7. INSERTAR DATOS LIMPIOS Y COMPATIBLES
+INSERT INTO PROVEEDORES (id_proveedor, nombre, contacto) VALUES 
+(1, 'Distribuidora Vistawood', 'ventas@vistawood.mx'),
+(2, 'Materiales del Golfo', 'contacto@materialesgolfo.com'),
+(3, 'Maderas Finas Ver', 'maderasver@gmail.com');
+
+INSERT INTO USUARIOS (id_usuario, nombre, usuario, contraseña, tipo_usuario) VALUES 
+(1, 'Valeria Admin', 'val_admin', 'admin123', 'Admin'),
+(2, 'Carlos Almacenista', 'carlos_stock', 'user123', 'UsuarioComun');
+
+INSERT INTO PRODUCTOS (id_producto, nombre, clave_proveedor, id_proveedor) VALUES 
+(1, 'Panel Laminado Vistawood Nogal', 'VW-LAM-NOG', 1),
+(2, 'WPC Lambrín Gris Oxford', 'WPC-GR-OXF', 2),
+(3, 'Piso Vinílico Roble Claro', 'PV-ROB-CLA', 2),
+(4, 'Barniz Poliuretano Alto Brillo', 'BAR-PU-AB', 3);
+
+INSERT INTO STOCK (id_producto, cerrados, abiertos) VALUES 
+(1, 0, 0),
+(2, 0, 0),
+(3, 0, 0),
+(4, 0, 0);
+
+INSERT INTO ENTRADAS (id_producto, cantidad, id_usuario) VALUES 
+(1, 40, 1),
+(2, 25, 2),
+(3, 80, 1);
+
+USE sistema_inventario;
+
+-- Eliminar los triggers viejos si es que existen
+DROP TRIGGER IF EXISTS actualizar_stock_entrada;
+DROP TRIGGER IF EXISTS actualizar_stock_salida;
+
+DELIMITER //
+
+-- Este trigger se asegura de que si se inserta una entrada general, se sume por defecto a cerrados
+CREATE TRIGGER actualizar_stock_entrada AFTER INSERT ON ENTRADAS
+FOR EACH ROW
+BEGIN
+    UPDATE STOCK SET cerrados = cerrados + NEW.cantidad WHERE id_producto = NEW.id_producto;
+END //
+
+-- Este trigger se asegura de que si se registra una salida general, se reste por defecto de cerrados
+CREATE TRIGGER actualizar_stock_salida AFTER INSERT ON SALIDAS
+FOR EACH ROW
+BEGIN
+    UPDATE STOCK SET cerrados = cerrados - NEW.cantidad WHERE id_producto = NEW.id_producto;
+END //
+
+DELIMITER ;
