@@ -4,8 +4,7 @@
       <h1><i class="fas fa-truck-loading"></i> GESTIÓN DE PROVEEDORES</h1>
     </header>
 
-    <!-- Formulario de Registro -->
-    <section class="card admin-border">
+    <section v-if="auth.user?.tipo_usuario === 'Admin'" class="card admin-border">
       <h3>REGISTRAR NUEVO PROVEEDOR</h3>
       <div class="form-grid">
         <div class="input-field">
@@ -18,7 +17,6 @@
       </div>
     </section>
 
-    <!-- Tabla con Buscador integrado -->
     <section class="card">
       <div class="table-header-flex">
         <h3>Directorio de Proveedores</h3>
@@ -34,7 +32,7 @@
             <th>ID INTERNO</th>
             <th>PROVEEDOR / DISTRIBUIDOR</th>
             <th>DATOS DE CONTACTO</th>
-            <th>ACCIONES</th>
+            <th v-if="auth.user?.tipo_usuario === 'Admin'">ACCIONES</th>
           </tr>
         </thead>
         <tbody>
@@ -42,7 +40,7 @@
             <td class="id-text">#{{ p.id_proveedor }}</td>
             <td class="text-white font-bold">{{ p.nombre }}</td>
             <td class="text-muted">{{ p.contacto }}</td>
-            <td>
+            <td v-if="auth.user?.tipo_usuario === 'Admin'">
               <button @click="borrarProveedor(p.id_proveedor)" class="btn-delete">
                 <i class="fas fa-trash-alt"></i> ELIMINAR
               </button>
@@ -60,7 +58,9 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
+import { useAuthStore } from '../stores/auth'; // Importamos el validador de sesión
 
+const auth = useAuthStore(); // Instanciamos la sesión activa
 const proveedores = ref([]);
 const buscarTermino = ref('');
 const nuevoProv = ref({ nombre: '', contacto: '' });
@@ -76,9 +76,9 @@ const cargarProveedores = async () => {
 };
 
 const crearProveedor = async () => {
-  if (!nuevoProv.value.nombre) {
-    return alert("EL NOMBRE DEL PROVEEDOR ES OBLIGATORIO");
-  }
+  if (auth.user?.tipo_usuario !== 'Admin') return alert("No tienes permisos.");
+  if (!nuevoProv.value.nombre) return alert("EL NOMBRE DEL PROVEEDOR ES OBLIGATORIO");
+  
   try {
     const res = await axios.post(url, nuevoProv.value);
     if(res.data.status === 'success' || !res.data.status) {
@@ -92,7 +92,8 @@ const crearProveedor = async () => {
 };
 
 const borrarProveedor = async (id) => {
-  if (confirm("¿ESTÁS SEGURO DE ELIMINAR ESTE PROVEEDOR? Los materiales existentes quedarán asignados 'SIN PROVEEDOR'")) {
+  if (auth.user?.tipo_usuario !== 'Admin') return alert("No tienes permisos.");
+  if (confirm("¿ESTÁS SEGURO DE ELIMINAR ESTE PROVEEDOR?")) {
     try {
       const res = await axios.delete(`${url}?id=${id}`);
       if(res.data.status === 'success' || !res.data.status) {
@@ -104,7 +105,6 @@ const borrarProveedor = async (id) => {
   }
 };
 
-// Buscador reactivo por Nombre o Datos de Contacto
 const proveedoresFiltrados = computed(() => {
   if (!buscarTermino.value) return proveedores.value;
   const termino = buscarTermino.value.toLowerCase().trim();

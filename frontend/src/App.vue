@@ -17,15 +17,15 @@
           <i class="fas fa-history"></i> HISTORIAL
         </router-link>
 
-        <!-- Nuevo botón exclusivo para administrar proveedores -->
-        <router-link v-if="auth.user?.tipo_usuario === 'Admin' || auth.user?.tipo_usuario === 'UsuarioComun'" to="/proveedores" class="nav-button">
+        <router-link to="/proveedores" class="nav-button">
           <i class="fas fa-truck-loading"></i> PROVEEDORES
         </router-link>
 
-        <router-link v-if="auth.user?.tipo_usuario === 'Admin' || auth.user?.tipo_usuario === 'UsuarioComun'" to="/usuarios" class="nav-button">
+        <router-link v-if="auth.user?.tipo_usuario === 'Admin'" to="/usuarios" class="nav-button">
           <i class="fas fa-users-cog"></i> USUARIOS
         </router-link>
       </nav>
+
 
       <div class="footer-sidebar">
         <button @click="handleLogout" class="btn-logout">

@@ -4,7 +4,7 @@
       <h1><i class="fas fa-layer-group"></i> Control de Almacén Decora</h1>
     </header>
 
-    <section v-if="auth.user?.tipo_usuario === 'Admin' || auth.user?.tipo_usuario === 'UsuarioComun'" class="card admin-card">
+    <section v-if="auth.user?.tipo_usuario === 'Admin'" class="card admin-card">
       <h3><i class="fas fa-tag"></i> Registrar Producto con Clave</h3>
       <div class="form-grid">
         <input v-model="nuevoProd.nombre" placeholder="Nombre del Material">
@@ -58,7 +58,7 @@
             <th>Proveedor</th>
             <th>Stock Cerrado</th>
             <th>Stock Abierto</th>
-            <th v-if="auth.user?.tipo_usuario === 'Admin' || auth.user?.tipo_usuario === 'UsuarioComun'">Acción</th>
+            <th v-if="auth.user?.tipo_usuario === 'Admin'">Acción</th>
           </tr>
         </thead>
         <tbody>
@@ -75,7 +75,7 @@
               <i class="fas fa-box-open"></i> {{ item.abiertos !== undefined ? item.abiertos : item.ABIERTOS }} pz
             </td>
             
-            <td v-if="auth.user?.tipo_usuario === 'Admin' || auth.user?.tipo_usuario === 'UsuarioComun'">
+            <td v-if="auth.user?.tipo_usuario === 'Admin'">
               <button @click="eliminarProducto(item.id_producto || item.ID_PRODUCTO)" class="btn-icon-delete">
                 <i class="fas fa-trash"></i>
               </button>

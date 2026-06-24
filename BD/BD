@@ -245,3 +245,14 @@ BEGIN
 END //
 
 DELIMITER ;
+
+
+--aplicar eso nuevo
+USE sistema_inventario;
+
+-- Reseteamos el stock a números reales limpios
+UPDATE STOCK SET cerrados = 25, abiertos = 0 WHERE id_producto = (SELECT id_producto FROM PRODUCTOS WHERE clave_proveedor = 'CR-BLAN-01');
+USE sistema_inventario;
+
+DROP TRIGGER IF EXISTS actualizar_stock_entrada;
+DROP TRIGGER IF EXISTS actualizar_stock_salida;

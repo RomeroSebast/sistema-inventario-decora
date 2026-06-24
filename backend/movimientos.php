@@ -9,24 +9,22 @@ header("Content-Type: application/json; charset=UTF-8");
 
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') exit;
 
-$method = $_SERVER['REQUEST_METHOD'];
-
-if ($method === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents("php://input"));
     
-    // Validar que los datos requeridos no estén vacíos
-    if (!empty($data->id_producto) && isset($data->cantidad) && !empty($data->estado_material) && !empty($data->tipo)) {
+    // Verificamos que lleguen todos los datos, incluyendo el estado_material (abierto/cerrado)
+    if (!empty($data->id_producto) && isset($data->cantidad) && !empty($data->tipo) && !empty($data->estado_material)) {
         
         $id_producto = $data->id_producto;
         $cantidad = intval($data->cantidad);
-        $estado = $data->estado_material; // 'cerrados' o 'abiertos'
         $tipo = $data->tipo; // 'ENTRADA' o 'SALIDA'
-        $id_usuario = 1; // ID por defecto de Valeria Admin para pruebas
+        $estado = $data->estado_material; // 'cerrados' o 'abiertos'
+        $id_usuario = 1; // Asignado para la bitácora
         
         try {
             $conn->beginTransaction();
             
-            // 1. Insertar el registro correspondiente en su bitácora histórica
+            // 1. Guardar en la bitácora de Historial
             if ($tipo === 'ENTRADA') {
                 $stmtMov = $conn->prepare("INSERT INTO ENTRADAS (id_producto, cantidad, id_usuario) VALUES (?, ?, ?)");
                 $stmtMov->execute([$id_producto, $cantidad, $id_usuario]);
@@ -36,7 +34,7 @@ if ($method === 'POST') {
                 $stmtMov->execute([$id_producto, $cantidad, $proyecto, $id_usuario]);
             }
             
-            // 2. Modificar directamente el Stock en base a si es Cerrado o Abierto
+            // 2. Lógica Exacta: Actualizar Stock Cerrado o Abierto sin duplicar
             if ($tipo === 'ENTRADA') {
                 if ($estado === 'cerrados') {
                     $stmtStock = $conn->prepare("UPDATE STOCK SET cerrados = cerrados + ? WHERE id_producto = ?");
@@ -52,9 +50,9 @@ if ($method === 'POST') {
             }
             
             $stmtStock->execute([$cantidad, $id_producto]);
-            $conn->commit();
             
-            echo json_encode(["status" => "success", "message" => "Stock modificado correctamente"]);
+            $conn->commit();
+            echo json_encode(["status" => "success", "message" => "Movimiento registrado con exactitud"]);
             
         } catch (Exception $e) {
             $conn->rollBack();
@@ -62,7 +60,7 @@ if ($method === 'POST') {
         }
         
     } else {
-        echo json_encode(["status" => "error", "message" => "Datos incompletos en la solicitud"]);
+        echo json_encode(["status" => "error", "message" => "Faltan datos en la solicitud"]);
     }
 }
 ?>
